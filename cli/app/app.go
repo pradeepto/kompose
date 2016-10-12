@@ -71,6 +71,13 @@ func validateFlags(c *cli.Context, opt *kobject.ConvertOptions) {
 		opt.InputFile = dabFile
 	}
 
+	serviceFile := c.GlobalString("opencompose")
+
+	if len(serviceFile) > 0 {
+		inputFormat = "opencompose"
+		opt.InputFile = serviceFile
+	}
+
 	if len(dabFile) > 0 && c.GlobalIsSet("file") {
 		logrus.Fatalf("Error: 'compose' file and 'dab' file cannot be specified at the same time")
 	}

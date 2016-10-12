@@ -185,6 +185,13 @@ func CommonFlags() []cli.Flag {
 			Value:  app.DefaultComposeFile,
 			EnvVar: "COMPOSE_FILE",
 		},
+
+		cli.StringFlag{
+			Name:   "opencompose,svc",
+			Usage:  fmt.Sprintf("Specify an  OpenCompose file (default: services.yml)"),
+			EnvVar: "OPEN_COMPOSE_FILE",
+		},
+
 		// creating a flag to suppress warnings
 		cli.BoolFlag{
 			Name:  "suppress-warnings",

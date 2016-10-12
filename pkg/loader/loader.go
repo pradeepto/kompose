@@ -23,6 +23,7 @@ import (
 	"github.com/kubernetes-incubator/kompose/pkg/kobject"
 	"github.com/kubernetes-incubator/kompose/pkg/loader/bundle"
 	"github.com/kubernetes-incubator/kompose/pkg/loader/compose"
+	"github.com/kubernetes-incubator/kompose/pkg/loader/opencompose"
 )
 
 type Loader interface {
@@ -38,6 +39,8 @@ func GetLoader(format string) (Loader, error) {
 		l = new(bundle.Bundle)
 	case "compose":
 		l = new(compose.Compose)
+	case "opencompose":
+		l = new(opencompose.OpenCompose)
 	default:
 		return nil, errors.New(fmt.Sprintf("Input file format %s is not supported", format))
 	}
