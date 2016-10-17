@@ -1,0 +1,22 @@
+version: "1"
+
+services:
+  redis-master:
+    image: gcr.io/google_containers/redis:e2e
+    service_type: clusterip
+    ports:
+      - "6379"
+  redis-slave:
+    service_type: clusterip
+    image: gcr.io/google_samples/gb-redisslave:v1
+    ports:
+      - "6379"
+    environment:
+      GET_HOSTS_FROM: dns
+  frontend:
+    image: gcr.io/google-samples/gb-frontend:v4
+    service_type: clusterip
+    ports:
+      - "80:80"
+    environment:
+      GET_HOSTS_FROM: dns

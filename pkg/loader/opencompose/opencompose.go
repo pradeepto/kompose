@@ -18,24 +18,36 @@ package opencompose
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
+	"io/ioutil"
 	"strconv"
 	"strings"
 
 	"k8s.io/kubernetes/pkg/api"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libcompose/config"
-	"github.com/docker/libcompose/lookup"
-	"github.com/docker/libcompose/project"
 	"github.com/kubernetes-incubator/kompose/pkg/kobject"
+
+	"gopkg.in/yaml.v2"
 )
 
-type OpenCompose struct {
+// Data structure for Service definition
+type Service struct {
+	Image         string
+	ServiceType   string // clusterIP, loadBalancer, None. http://kubernetes.io/docs/user-guide/services/#publishing-services---service-types
+	Ports         []string
+	Environment   map[string]string
+	ContainerName string
+	Entrypoint    []string
+	Command       []string
 }
 
-// load environment variables from compose file
+// OpenCompose Data structure
+type OpenCompose struct {
+	Version  string
+	Services map[string]Service
+}
+
+// Load environment variables from compose file
 func loadEnvVars(e map[string]string) []kobject.EnvVar {
 	envs := []kobject.EnvVar{}
 	for k, v := range e {
@@ -97,105 +109,48 @@ func loadPorts(composePorts []string) ([]kobject.Ports, error) {
 	return ports, nil
 }
 
-// load compose file into KomposeObject
-func (c *OpenCompose) LoadFile(file string) kobject.KomposeObject {
+func (oc *OpenCompose) LoadFile(serviceFile string) kobject.KomposeObject {
+	var opencompose OpenCompose
+
+	// Create an empty kompose internal object
 	komposeObject := kobject.KomposeObject{
 		ServiceConfigs: make(map[string]kobject.ServiceConfig),
 	}
-	context := &project.Context{}
-	if file == "" {
-		file = "docker-compose.yml"
-	}
-	context.ComposeFiles = []string{file}
 
-	if context.ResourceLookup == nil {
-		context.ResourceLookup = &lookup.FileResourceLookup{}
-	}
-
-	if context.EnvironmentLookup == nil {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return kobject.KomposeObject{}
-		}
-		context.EnvironmentLookup = &lookup.ComposableEnvLookup{
-			Lookups: []config.EnvironmentLookup{
-				&lookup.EnvfileLookup{
-					Path: filepath.Join(cwd, ".env"),
-				},
-				&lookup.OsEnvLookup{},
-			},
-		}
-	}
-
-	// load compose file into composeObject
-	composeObject := project.NewProject(context, nil, nil)
-	err := composeObject.Parse()
+	// Read the opencompose/services file in yaml format and load data in raw bytes
+	serviceBytes, err := ioutil.ReadFile(serviceFile)
 	if err != nil {
-		logrus.Fatalf("Failed to load compose file: %v", err)
+		logrus.Fatalf("Failed to load service file: %v", err)
+	}
+
+	// Unmarshall the raw bytes into OpenCompose struct
+	if err = yaml.Unmarshal(serviceBytes, &opencompose); err != nil {
+		fmt.Errorf("Error Unmarshalling file - %s: %v", serviceFile, err)
 	}
 
 	// transform composeObject into komposeObject
-	composeServiceNames := composeObject.ServiceConfigs.Keys()
+	//serviceNames := opencompose.Keys()
 
-	// volume config and network config are not supported
-	if len(composeObject.NetworkConfigs) > 0 {
-		logrus.Warningf("Unsupported network configuration of compose v2 - ignoring")
-	}
-	if len(composeObject.VolumeConfigs) > 0 {
-		logrus.Warningf("Unsupported volume configuration of compose v2 - ignoring")
-	}
+	//Populate the kobject
+	for name, service := range opencompose.Services {
+		serviceConfig := kobject.ServiceConfig{}
+		serviceConfig.Image = service.Image
+		serviceConfig.ContainerName = service.ContainerName
+		serviceConfig.Command = service.Entrypoint
+		serviceConfig.Args = service.Command
+		serviceConfig.ServiceType = service.ServiceType
 
-	networksWarningFound := false
+		// Load environment
+		serviceConfig.Environment = loadEnvVars(service.Environment)
 
-	for _, name := range composeServiceNames {
-		if composeServiceConfig, ok := composeObject.ServiceConfigs.Get(name); ok {
-			//FIXME: networks always contains one default element, even it isn't declared in compose v2.
-			if composeServiceConfig.Networks != nil && len(composeServiceConfig.Networks.Networks) > 0 &&
-				composeServiceConfig.Networks.Networks[0].Name != "default" &&
-				!networksWarningFound {
-				logrus.Warningf("Unsupported key networks - ignoring")
-				networksWarningFound = true
-			}
-			kobject.CheckUnsupportedKey(composeServiceConfig)
-			serviceConfig := kobject.ServiceConfig{}
-			serviceConfig.Image = composeServiceConfig.Image
-			serviceConfig.ContainerName = composeServiceConfig.ContainerName
-			serviceConfig.Command = composeServiceConfig.Entrypoint
-			serviceConfig.Args = composeServiceConfig.Command
-
-			envs := loadEnvVars(composeServiceConfig.Environment.ToMap())
-			serviceConfig.Environment = envs
-
-			// load ports
-			ports, err := loadPorts(composeServiceConfig.Ports)
-			if err != nil {
-				logrus.Fatalf("%q failed to load ports from compose file: %v", name, err)
-			}
-			serviceConfig.Port = ports
-
-			serviceConfig.WorkingDir = composeServiceConfig.WorkingDir
-
-			if composeServiceConfig.Volumes != nil {
-				for _, volume := range composeServiceConfig.Volumes.Volumes {
-					serviceConfig.Volumes = append(serviceConfig.Volumes, volume.String())
-				}
-			}
-
-			// convert compose labels to annotations
-			serviceConfig.Annotations = map[string]string(composeServiceConfig.Labels)
-
-			serviceConfig.CPUSet = composeServiceConfig.CPUSet
-			serviceConfig.CPUShares = int64(composeServiceConfig.CPUShares)
-			serviceConfig.CPUQuota = int64(composeServiceConfig.CPUQuota)
-			serviceConfig.CapAdd = composeServiceConfig.CapAdd
-			serviceConfig.CapDrop = composeServiceConfig.CapDrop
-			serviceConfig.Expose = composeServiceConfig.Expose
-			serviceConfig.Privileged = composeServiceConfig.Privileged
-			serviceConfig.Restart = composeServiceConfig.Restart
-			serviceConfig.User = composeServiceConfig.User
-
-			komposeObject.ServiceConfigs[name] = serviceConfig
+		// Load ports
+		ports, err := loadPorts(service.Ports)
+		if err != nil {
+			logrus.Fatalf("%q failed to load ports from compose file: %v", name, err)
 		}
+		serviceConfig.Port = ports
+
+		komposeObject.ServiceConfigs[name] = serviceConfig
 	}
 
 	return komposeObject
