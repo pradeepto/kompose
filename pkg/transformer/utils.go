@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
@@ -41,7 +40,7 @@ func CreateOutFile(out string) *os.File {
 	return f
 }
 
-// parseVolume parse a given volume, which might be [name:][host:]container[:access_mode]
+/*// parseVolume parse a given volume, which might be [name:][host:]container[:access_mode]
 func ParseVolume(volume string) (name, host, container, mode string, err error) {
 	separator := ":"
 	volumeStrings := strings.Split(volume, separator)
@@ -71,11 +70,11 @@ func ParseVolume(volume string) (name, host, container, mode string, err error) 
 		return
 	}
 	return
-}
+}*/
 
-func isPath(substring string) bool {
+/*func isPath(substring string) bool {
 	return strings.Contains(substring, "/")
-}
+}*/
 
 // Configure label
 func ConfigLabels(name string) map[string]string {

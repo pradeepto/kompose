@@ -103,6 +103,12 @@ var composeOptions = map[string]string{
 // KomposeObject holds the generic struct of Kompose transformation
 type KomposeObject struct {
 	ServiceConfigs map[string]ServiceConfig
+	VolumeConfigs  map[string]VolumeConfig
+}
+
+type VolumeConfig struct {
+	Size string
+	Mode string
 }
 
 type ConvertOptions struct {
@@ -128,7 +134,7 @@ type ServiceConfig struct {
 	Command       []string
 	WorkingDir    string
 	Args          []string
-	Volumes       []string
+	Volumes       map[string]ServiceVolumes
 	Network       []string
 	Labels        map[string]string
 	Annotations   map[string]string
@@ -143,6 +149,11 @@ type ServiceConfig struct {
 	User          string
 	VolumesFrom   []string
 	ServiceType   string
+}
+
+type ServiceVolumes struct {
+	MountPoint    string
+	SharedStorage bool
 }
 
 // EnvVar holds the environment variable struct of a container

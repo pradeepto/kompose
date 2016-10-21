@@ -151,8 +151,14 @@ func InitDS(name string, service kobject.ServiceConfig) *extensions.DaemonSet {
 }
 
 // Initialize PersistentVolumeClaim
-func CreatePVC(name string, mode string) *api.PersistentVolumeClaim {
-	size, err := resource.ParseQuantity("100Mi")
+func CreatePVC(name string, mode string, size string) *api.PersistentVolumeClaim {
+	if size == "" {
+		size = "100Mi"
+	}
+	if mode == "" {
+		mode = "ReadWriteOnce"
+	}
+	parsedSize, err := resource.ParseQuantity(size)
 	if err != nil {
 		logrus.Fatalf("Error parsing size")
 	}
@@ -168,17 +174,13 @@ func CreatePVC(name string, mode string) *api.PersistentVolumeClaim {
 		Spec: api.PersistentVolumeClaimSpec{
 			Resources: api.ResourceRequirements{
 				Requests: api.ResourceList{
-					api.ResourceStorage: size,
+					api.ResourceStorage: parsedSize,
 				},
 			},
 		},
 	}
 
-	if mode == "ro" {
-		pvc.Spec.AccessModes = []api.PersistentVolumeAccessMode{"ReadWriteOnce"}
-	} else {
-		pvc.Spec.AccessModes = []api.PersistentVolumeAccessMode{"ReadWriteOnce"}
-	}
+	pvc.Spec.AccessModes = []api.PersistentVolumeAccessMode{api.PersistentVolumeAccessMode(mode)}
 	return pvc
 }
 
@@ -216,49 +218,46 @@ func ConfigServicePorts(name string, service kobject.ServiceConfig) []api.Servic
 }
 
 // Configure the container volumes.
-func ConfigVolumes(name string, service kobject.ServiceConfig) ([]api.VolumeMount, []api.Volume, []*api.PersistentVolumeClaim) {
+func ConfigVolumes(name string, komposeObject kobject.KomposeObject) ([]api.VolumeMount, []api.Volume) {
+	service := komposeObject.ServiceConfigs[name]
 	volumesMount := []api.VolumeMount{}
 	volumes := []api.Volume{}
-	var pvc []*api.PersistentVolumeClaim
 
-	var count int
-	for _, volume := range service.Volumes {
-		volumeName, host, container, mode, err := transformer.ParseVolume(volume)
-		if err != nil {
-			logrus.Warningf("Failed to configure container volume: %v", err)
-			continue
+	for name, vol := range service.Volumes {
+		var readonly bool
+		if komposeObject.VolumeConfigs[name].Mode == "ReadOnlyMany" {
+			readonly = true
 		}
-		if volumeName == "" {
-			volumeName = fmt.Sprintf("%s-claim%d", name, count)
-			count++
-		}
-		// check if ro/rw mode is defined, default rw
-		readonly := len(mode) > 0 && mode == "ro"
 
-		volmount := api.VolumeMount{
-			Name:      volumeName,
-			ReadOnly:  readonly,
-			MountPath: container,
-		}
-		volumesMount = append(volumesMount, volmount)
-
-		vol := api.Volume{
-			Name: volumeName,
-			VolumeSource: api.VolumeSource{
-				PersistentVolumeClaim: &api.PersistentVolumeClaimVolumeSource{
-					ClaimName: volumeName,
-					ReadOnly:  readonly,
+		if vol.SharedStorage {
+			// create pvc
+			volmount := api.VolumeMount{
+				Name:      name,
+				ReadOnly:  readonly,
+				MountPath: vol.MountPoint,
+			}
+			volumesMount = append(volumesMount, volmount)
+			vol := api.Volume{
+				Name: name,
+				VolumeSource: api.VolumeSource{
+					PersistentVolumeClaim: &api.PersistentVolumeClaimVolumeSource{
+						ClaimName: name,
+						ReadOnly:  readonly,
+					},
 				},
-			},
-		}
-		volumes = append(volumes, vol)
+			}
+			volumes = append(volumes, vol)
 
-		if len(host) > 0 {
-			logrus.Warningf("Volume mount on the host %q isn't supported - ignoring path on the host", host)
+		} else {
+			// create emptydir
+			volName := transformer.RandStringBytes(20)
+			volumesMount = append(volumesMount, api.VolumeMount{Name: volName, ReadOnly: readonly, MountPath: vol.MountPoint})
+			volumeSource := api.VolumeSource{EmptyDir: &api.EmptyDirVolumeSource{}}
+			volumes = append(volumes, api.Volume{Name: volName, VolumeSource: volumeSource})
 		}
-		pvc = append(pvc, CreatePVC(volumeName, mode))
 	}
-	return volumesMount, volumes, pvc
+
+	return volumesMount, volumes
 }
 
 // Configure the environment variables.
@@ -297,6 +296,10 @@ func (k *Kubernetes) Transform(komposeObject kobject.KomposeObject, opt kobject.
 	// this will hold all the converted data
 	var allobjects []runtime.Object
 
+	for name, vol := range komposeObject.VolumeConfigs {
+		allobjects = append(allobjects, CreatePVC(name, vol.Mode, vol.Size))
+	}
+
 	for name, service := range komposeObject.ServiceConfigs {
 		objects := CreateKubernetesObjects(name, service, opt)
 
@@ -306,7 +309,7 @@ func (k *Kubernetes) Transform(komposeObject kobject.KomposeObject, opt kobject.
 			objects = append(objects, svc)
 		}
 
-		UpdateKubernetesObjects(name, service, &objects)
+		UpdateKubernetesObjects(name, komposeObject, &objects)
 
 		allobjects = append(allobjects, objects...)
 	}

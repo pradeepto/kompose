@@ -127,6 +127,7 @@ func loadPorts(composePorts []string) ([]kobject.Ports, error) {
 func (c *Compose) LoadFile(file string) kobject.KomposeObject {
 	komposeObject := kobject.KomposeObject{
 		ServiceConfigs: make(map[string]kobject.ServiceConfig),
+		VolumeConfigs:  make(map[string]kobject.VolumeConfig),
 	}
 	context := &project.Context{}
 	if file == "" {
@@ -188,6 +189,7 @@ func (c *Compose) LoadFile(file string) kobject.KomposeObject {
 			serviceConfig.ContainerName = composeServiceConfig.ContainerName
 			serviceConfig.Command = composeServiceConfig.Entrypoint
 			serviceConfig.Args = composeServiceConfig.Command
+			serviceConfig.Volumes = make(map[string]kobject.ServiceVolumes)
 
 			envs := loadEnvVars(composeServiceConfig.Environment)
 			serviceConfig.Environment = envs
@@ -202,11 +204,41 @@ func (c *Compose) LoadFile(file string) kobject.KomposeObject {
 			serviceConfig.WorkingDir = composeServiceConfig.WorkingDir
 
 			if composeServiceConfig.Volumes != nil {
+				var count int
 				for _, volume := range composeServiceConfig.Volumes.Volumes {
-					serviceConfig.Volumes = append(serviceConfig.Volumes, volume.String())
+					volname, hostPath, mountPath, mode, err := ParseVolume(volume.String())
+					if err != nil {
+						logrus.Warningf("Failed to configure container volume: %v", err)
+						continue
+					}
+					if volname == "" {
+						volname = fmt.Sprintf("%s-claim%d", name, count)
+						count++
+					}
+
+					serviceConfig.Volumes[volname] = kobject.ServiceVolumes{
+						MountPoint:    mountPath,
+						SharedStorage: true,
+					}
+
+					// check if ro/rw mode is defined, default rw
+					readonly := len(mode) > 0 && mode == "ro"
+					if readonly {
+						mode = "ReadOnlyMany"
+					} else {
+						mode = "ReadWriteOnce"
+					}
+
+					komposeObject.VolumeConfigs[volname] = kobject.VolumeConfig{
+						Size: "100Mi",
+						Mode: mode,
+					}
+					if len(hostPath) > 0 {
+						logrus.Warningf("Volume mount on the host %q isn't supported - ignoring path on the host", hostPath)
+					}
+
 				}
 			}
-
 			// convert compose labels to annotations
 			serviceConfig.Annotations = map[string]string(composeServiceConfig.Labels)
 
@@ -226,4 +258,40 @@ func (c *Compose) LoadFile(file string) kobject.KomposeObject {
 	}
 
 	return komposeObject
+}
+
+// parseVolume parse a given volume, which might be [name:][host:]container[:access_mode]
+func ParseVolume(volume string) (name, host, container, mode string, err error) {
+	separator := ":"
+	volumeStrings := strings.Split(volume, separator)
+	if len(volumeStrings) == 0 {
+		return
+	}
+	// Set name if existed
+	if !isPath(volumeStrings[0]) {
+		name = volumeStrings[0]
+		volumeStrings = volumeStrings[1:]
+	}
+	if len(volumeStrings) == 0 {
+		err = fmt.Errorf("invalid volume format: %s", volume)
+		return
+	}
+	if volumeStrings[len(volumeStrings)-1] == "rw" || volumeStrings[len(volumeStrings)-1] == "ro" {
+		mode = volumeStrings[len(volumeStrings)-1]
+		volumeStrings = volumeStrings[:len(volumeStrings)-1]
+	}
+	container = volumeStrings[len(volumeStrings)-1]
+	volumeStrings = volumeStrings[:len(volumeStrings)-1]
+	if len(volumeStrings) == 1 {
+		host = volumeStrings[0]
+	}
+	if !isPath(container) || (len(host) > 0 && !isPath(host)) || len(volumeStrings) > 1 {
+		err = fmt.Errorf("invalid volume format: %s", volume)
+		return
+	}
+	return
+}
+
+func isPath(substring string) bool {
+	return strings.Contains(substring, "/")
 }

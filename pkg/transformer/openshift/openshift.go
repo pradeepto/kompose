@@ -141,6 +141,10 @@ func (k *OpenShift) Transform(komposeObject kobject.KomposeObject, opt kobject.C
 	// this will hold all the converted data
 	var allobjects []runtime.Object
 
+	for name, vol := range komposeObject.VolumeConfigs {
+		allobjects = append(allobjects, kubernetes.CreatePVC(name, vol.Mode, vol.Size))
+	}
+
 	for name, service := range komposeObject.ServiceConfigs {
 		objects := kubernetes.CreateKubernetesObjects(name, service, opt)
 
@@ -156,7 +160,7 @@ func (k *OpenShift) Transform(komposeObject kobject.KomposeObject, opt kobject.C
 			objects = append(objects, svc)
 		}
 
-		kubernetes.UpdateKubernetesObjects(name, service, &objects)
+		kubernetes.UpdateKubernetesObjects(name, komposeObject, &objects)
 
 		allobjects = append(allobjects, objects...)
 	}

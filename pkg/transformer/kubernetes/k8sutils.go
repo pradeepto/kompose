@@ -252,20 +252,14 @@ func CreateService(name string, service kobject.ServiceConfig, objects []runtime
 }
 
 // load configurations to k8s objects
-func UpdateKubernetesObjects(name string, service kobject.ServiceConfig, objects *[]runtime.Object) {
+func UpdateKubernetesObjects(name string, komposeObject kobject.KomposeObject, objects *[]runtime.Object) {
+	service := komposeObject.ServiceConfigs[name]
 	// Configure the environment variables.
 	envs := ConfigEnvs(name, service)
 
 	// Configure the container volumes.
-	volumesMount, volumes, pvc := ConfigVolumes(name, service)
-	if pvc != nil {
-		// Looping on the slice pvc instead of `*objects = append(*objects, pvc...)`
-		// because the type of objects and pvc is different, but when doing append
-		// one element at a time it gets converted to runtime.Object for objects slice
-		for _, p := range pvc {
-			*objects = append(*objects, p)
-		}
-	}
+	//volumesMount, volumes, pvc := ConfigVolumes(name, service)
+	volumesMount, volumes := ConfigVolumes(name, komposeObject)
 
 	// Configure the container ports.
 	ports := ConfigPorts(name, service)
