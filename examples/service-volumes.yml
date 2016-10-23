@@ -1,0 +1,26 @@
+version: "2"
+
+services:
+  foo:
+    image: foo
+    volumes:
+      - bar-data:/some/random/loc/bar
+      - foo-data:/some/random/loc/foo  # maps to PVC as defined in volumes section
+      - /foo/bar                       # maps to EmptyDir
+
+  bar:
+    image: bar
+    volumes:
+      - vol:/path/in/container
+      - bar-data:/some/random/loc/bar
+
+volumes:
+  vol:
+    size: "10Gi"
+    mode: ReadWriteOnce
+  bar-data:
+    size: "5Gi"
+    mode: ReadWriteMany
+  foo-data:
+    size: "4Gi"
+
