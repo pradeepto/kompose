@@ -1,0 +1,9 @@
+version: "2"
+
+services:
+  foo:
+    image: "docker.io/surajd/myhttpd"
+    build:
+      context: .
+    ports:
+      - "18080:80"
