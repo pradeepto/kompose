@@ -336,7 +336,7 @@ func findDependentVolumes(svcname string, komposeObject kobject.KomposeObject) (
 		volumeMounts = append(volumeMounts, volMounts...)
 	}
 	// add the volumes info of this service
-	volMounts, vols, _ := ConfigVolumes(svcname, komposeObject.ServiceConfigs[svcname])
+	volMounts, vols := ConfigVolumes(svcname, komposeObject)
 	volumes = append(volumes, vols...)
 	volumeMounts = append(volumeMounts, volMounts...)
 	return
