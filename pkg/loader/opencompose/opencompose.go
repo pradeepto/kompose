@@ -35,7 +35,7 @@ import (
 // Data structure for Service definition
 type Service struct {
 	Image         string
-	ServiceType   string // clusterIP, loadBalancer, None. http://kubernetes.io/docs/user-guide/services/#publishing-services---service-types
+	ServiceType   string `yaml:"service_type,omitempty"` // clusterIP, loadBalancer, None. http://kubernetes.io/docs/user-guide/services/#publishing-services---service-types
 	Ports         []string
 	Environment   map[string]string
 	ContainerName string

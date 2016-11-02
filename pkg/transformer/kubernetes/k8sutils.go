@@ -244,6 +244,17 @@ func CreateService(name string, service kobject.ServiceConfig, objects []runtime
 	servicePorts := ConfigServicePorts(name, service)
 	svc.Spec.Ports = servicePorts
 
+	// Configure service types
+	switch strings.ToLower(service.ServiceType) {
+	case "", "internal":
+		svc.Spec.Type = api.ServiceTypeClusterIP
+	case "external":
+		svc.Spec.Type = api.ServiceTypeLoadBalancer
+		logrus.Warningf("[%q] Here you will have to setup a load balancer so that your service is accessible from outside the cluster. After that edit service to have 'loadBalancerIP'.", name)
+	default:
+		logrus.Fatalf("Unknown service_type value '%s', supported values are 'internal' and 'external'", service.ServiceType)
+	}
+
 	// Configure annotations
 	annotations := transformer.ConfigAnnotations(service)
 	svc.ObjectMeta.Annotations = annotations
