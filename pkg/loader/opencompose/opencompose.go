@@ -20,9 +20,11 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"k8s.io/kubernetes/pkg/api"
 
@@ -76,54 +78,101 @@ func loadEnvVars(e map[string]string) []kobject.EnvVar {
 	return envs
 }
 
-// Load ports from compose file
-func loadPorts(composePorts []string) ([]kobject.Ports, error) {
-	ports := []kobject.Ports{}
-	character := ":"
-	for _, port := range composePorts {
-		proto := api.ProtocolTCP
-		// get protocol
-		p := strings.Split(port, "/")
-		if len(p) == 2 {
-			if strings.EqualFold("tcp", p[1]) {
-				proto = api.ProtocolTCP
-			} else if strings.EqualFold("udp", p[1]) {
-				proto = api.ProtocolUDP
-			}
-		}
-		// port mappings without protocol part
-		portNoProto := p[0]
-		if strings.Contains(portNoProto, character) {
-			hostPort := portNoProto[0:strings.Index(portNoProto, character)]
-			hostPort = strings.TrimSpace(hostPort)
-			hostPortInt, err := strconv.Atoi(hostPort)
-			if err != nil {
-				return nil, fmt.Errorf("invalid host port %q", port)
-			}
-			containerPort := portNoProto[strings.Index(portNoProto, character)+1:]
-			containerPort = strings.TrimSpace(containerPort)
-			containerPortInt, err := strconv.Atoi(containerPort)
-			if err != nil {
-				return nil, fmt.Errorf("invalid container port %q", port)
-			}
-			ports = append(ports, kobject.Ports{
-				HostPort:      int32(hostPortInt),
-				ContainerPort: int32(containerPortInt),
-				Protocol:      proto,
-			})
-		} else {
-			containerPortInt, err := strconv.Atoi(portNoProto)
-			if err != nil {
-				return nil, fmt.Errorf("invalid container port %q", port)
-			}
-			ports = append(ports, kobject.Ports{
-				ContainerPort: int32(containerPortInt),
-				Protocol:      proto,
-			})
-		}
+func randomPortGenerator() int {
+	max := 65535
+	min := 31000
+	rand.Seed(time.Now().UTC().UnixNano())
+	return rand.Intn(max-min) + min
+}
 
+// Load ports from compose file
+func loadPorts(ports []string) ([]kobject.Ports, error) {
+	k8sports := []kobject.Ports{}
+
+	for _, port := range ports {
+		p := strings.Split(port, ":")
+		var proto api.Protocol
+		var hostPort, containerPort int
+		var err error
+
+		switch len(p) {
+		case 1:
+			proto = api.ProtocolTCP
+
+			// 3306
+			hostPort, err := strconv.Atoi(p[0])
+			if err != nil {
+				return nil, fmt.Errorf("invalid container port %q", p[0])
+			}
+			containerPort = hostPort
+
+		case 2:
+			if strings.EqualFold("tcp", p[0]) {
+				// tcp:3306
+				proto = api.ProtocolTCP
+
+				hostPort, err := strconv.Atoi(p[1])
+				if err != nil {
+					return nil, fmt.Errorf("invalid container port %q", p[1])
+				}
+				containerPort = hostPort
+
+			} else if strings.EqualFold("udp", p[0]) {
+				// udp:16667
+				proto = api.ProtocolUDP
+
+				hostPort, err := strconv.Atoi(p[1])
+				if err != nil {
+					return nil, fmt.Errorf("invalid container port %q", p[1])
+				}
+				containerPort = hostPort
+
+			} else {
+				// 13306:3306
+				proto = api.ProtocolTCP
+
+				hostPort, err = strconv.Atoi(p[0])
+				if err != nil {
+					return nil, fmt.Errorf("invalid container port %q", p[0])
+				}
+
+				containerPort, err = strconv.Atoi(p[1])
+				if err != nil {
+					return nil, fmt.Errorf("invalid container port %q", p[1])
+				}
+
+			}
+		case 3:
+			if strings.EqualFold("tcp", p[0]) || len(p[0]) == 0 {
+				// tcp:13306:3306
+				// ::3306
+				proto = api.ProtocolTCP
+			} else if strings.EqualFold("udp", p[0]) {
+				// udp:16667:6667
+				proto = api.ProtocolUDP
+			} else {
+				return nil, fmt.Errorf("invalid protocol %q", p[0])
+			}
+			// tcp::3306
+			hostPort, err = strconv.Atoi(p[1])
+			if err != nil && len(p[1]) != 0 {
+				return nil, fmt.Errorf("invalid container port %q", p[1])
+			} else if len(p[1]) == 0 {
+				hostPort = randomPortGenerator()
+			}
+
+			containerPort, err = strconv.Atoi(p[2])
+			if err != nil {
+				return nil, fmt.Errorf("invalid container port %q", p[2])
+			}
+		}
+		k8sports = append(k8sports, kobject.Ports{
+			HostPort:      int32(hostPort),
+			ContainerPort: int32(containerPort),
+			Protocol:      proto,
+		})
 	}
-	return ports, nil
+	return k8sports, nil
 }
 
 func (oc *OpenCompose) LoadFile(serviceFile string) kobject.KomposeObject {
