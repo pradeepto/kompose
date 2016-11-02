@@ -1,4 +1,4 @@
-version: "1"
+version: "0.2"
 services:
   web:
     image: tuna/docker-counter23
