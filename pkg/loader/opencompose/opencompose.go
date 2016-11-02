@@ -34,15 +34,15 @@ import (
 
 // Data structure for Service definition
 type Service struct {
-	Image         string
-	ServiceType   string `yaml:"service_type,omitempty"` // clusterIP, loadBalancer, None. http://kubernetes.io/docs/user-guide/services/#publishing-services---service-types
-	Ports         []string
-	Environment   map[string]string
-	ContainerName string
-	Entrypoint    []string
-	Command       []string
-	Volumes       []string
-	Build         Build `yaml:"build,omitempty"`
+	Image         string            `yaml:"image"`
+	ServiceType   string            `yaml:"service_type,omitempty"` // clusterIP, loadBalancer, None. http://kubernetes.io/docs/user-guide/services/#publishing-services---service-types
+	Ports         []string          `yaml:"ports,omitempty"`
+	Environment   map[string]string `yaml:"environment,omitempty"`
+	ContainerName string            `yaml:"container_name,omitempty"`
+	Entrypoint    []string          `yaml:"entrypoint,omitempty"`
+	Command       []string          `yaml:"command,omitempty"`
+	Volumes       []string          `yaml:"volumes,omitempty"`
+	Build         Build             `yaml:"build,omitempty"`
 }
 
 // build info for doing image builds using Dockerfile
