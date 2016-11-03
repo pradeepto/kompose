@@ -245,14 +245,18 @@ func CreateService(name string, service kobject.ServiceConfig, objects []runtime
 	svc.Spec.Ports = servicePorts
 
 	// Configure service types
-	switch strings.ToLower(service.ServiceType) {
-	case "", "internal":
-		svc.Spec.Type = api.ServiceTypeClusterIP
-	case "external":
-		svc.Spec.Type = api.ServiceTypeLoadBalancer
-		logrus.Warningf("[%q] Here you will have to setup a load balancer so that your service is accessible from outside the cluster. After that edit service to have 'loadBalancerIP'.", name)
-	default:
-		logrus.Fatalf("Unknown service_type value '%s', supported values are 'internal' and 'external'", service.ServiceType)
+	for key, value := range service.Annotations {
+		if key == "kompose.service.type" {
+			if strings.ToLower(value) == "nodeport" {
+				svc.Spec.Type = "NodePort"
+			} else if strings.ToLower(value) == "clusterip" {
+				svc.Spec.Type = "ClusterIP"
+			} else if strings.ToLower(value) == "loadbalancer" {
+				svc.Spec.Type = "LoadBalancer"
+			} else {
+				logrus.Fatalf("Unknown value '%s', supported values are 'NodePort, ClusterIP and LoadBalancer' ", value)
+			}
+		}
 	}
 
 	// Configure annotations

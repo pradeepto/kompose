@@ -215,6 +215,7 @@ func (oc *OpenCompose) LoadFile(serviceFile string) kobject.KomposeObject {
 		serviceConfig.Args = service.Command
 		serviceConfig.ServiceType = service.ServiceType
 		serviceConfig.Volumes = make(map[string]kobject.ServiceVolumes)
+		serviceConfig.Annotations = make(map[string]string)
 
 		// Load environment
 		serviceConfig.Environment = loadEnvVars(service.Environment)
@@ -254,6 +255,15 @@ func (oc *OpenCompose) LoadFile(serviceFile string) kobject.KomposeObject {
 			}
 
 			handleBuilds(service.Build, imageName)
+		}
+		// Configure service types
+		switch strings.ToLower(service.ServiceType) {
+		case "", "internal":
+			serviceConfig.Annotations["kompose.service.type"] = string(api.ServiceTypeClusterIP)
+		case "external":
+			serviceConfig.Annotations["kompose.service.type"] = string(api.ServiceTypeLoadBalancer)
+		default:
+			logrus.Fatalf("Unknown service_type value '%s', supported values are 'internal' and 'external'", service.ServiceType)
 		}
 
 		komposeObject.ServiceConfigs[name] = serviceConfig
