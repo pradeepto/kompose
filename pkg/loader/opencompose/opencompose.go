@@ -41,7 +41,6 @@ type Service struct {
 	Ports         []string          `yaml:"ports,omitempty"`
 	Environment   map[string]string `yaml:"environment,omitempty"`
 	ContainerName string            `yaml:"container_name,omitempty"`
-	Entrypoint    []string          `yaml:"entrypoint,omitempty"`
 	Command       []string          `yaml:"command,omitempty"`
 	Volumes       []string          `yaml:"volumes,omitempty"`
 	Build         Build             `yaml:"build,omitempty"`
@@ -211,8 +210,7 @@ func (oc *OpenCompose) LoadFile(serviceFile string) kobject.KomposeObject {
 		serviceConfig := kobject.ServiceConfig{}
 		serviceConfig.Image = service.Image
 		serviceConfig.ContainerName = service.ContainerName
-		serviceConfig.Command = service.Entrypoint
-		serviceConfig.Args = service.Command
+		serviceConfig.Command = service.Command
 		serviceConfig.ServiceType = service.ServiceType
 		serviceConfig.Volumes = make(map[string]kobject.ServiceVolumes)
 		serviceConfig.Annotations = make(map[string]string)

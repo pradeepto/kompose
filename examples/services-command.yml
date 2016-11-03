@@ -1,0 +1,16 @@
+version: "0.2"
+services:
+  mariadb:
+    image: centos/mariadb
+    ports:
+      - "3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: etherpad
+      MYSQL_DATABASE: etherpad
+      MYSQL_PASSWORD: etherpad
+      MYSQL_USER: etherpad
+    command:
+      - /bin/mariadb
+      - start-server
+      - --local
+
