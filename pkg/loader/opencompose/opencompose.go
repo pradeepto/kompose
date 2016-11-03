@@ -101,7 +101,7 @@ func loadPorts(ports []string) ([]kobject.Ports, error) {
 			// 3306
 			hostPort, err := strconv.Atoi(p[0])
 			if err != nil {
-				return nil, fmt.Errorf("invalid container port %q", p[0])
+				return nil, fmt.Errorf("invalid port %q, please provide integer value", port)
 			}
 			containerPort = hostPort
 
@@ -112,7 +112,7 @@ func loadPorts(ports []string) ([]kobject.Ports, error) {
 
 				hostPort, err := strconv.Atoi(p[1])
 				if err != nil {
-					return nil, fmt.Errorf("invalid container port %q", p[1])
+					return nil, fmt.Errorf("invalid port %q, please provide integer value in %q", p[1], port)
 				}
 				containerPort = hostPort
 
@@ -122,7 +122,7 @@ func loadPorts(ports []string) ([]kobject.Ports, error) {
 
 				hostPort, err := strconv.Atoi(p[1])
 				if err != nil {
-					return nil, fmt.Errorf("invalid container port %q", p[1])
+					return nil, fmt.Errorf("invalid port %q, please provide integer value in %q", p[1], port)
 				}
 				containerPort = hostPort
 
@@ -132,37 +132,34 @@ func loadPorts(ports []string) ([]kobject.Ports, error) {
 
 				hostPort, err = strconv.Atoi(p[0])
 				if err != nil {
-					return nil, fmt.Errorf("invalid container port %q", p[0])
+					return nil, fmt.Errorf("invalid port %q, please provide integer value in %q", p[0], port)
 				}
 
 				containerPort, err = strconv.Atoi(p[1])
 				if err != nil {
-					return nil, fmt.Errorf("invalid container port %q", p[1])
+					return nil, fmt.Errorf("invalid port %q, please provide integer value in %q", p[1], port)
 				}
 
 			}
 		case 3:
-			if strings.EqualFold("tcp", p[0]) || len(p[0]) == 0 {
+			if strings.EqualFold("tcp", p[0]) {
 				// tcp:13306:3306
-				// ::3306
 				proto = api.ProtocolTCP
 			} else if strings.EqualFold("udp", p[0]) {
 				// udp:16667:6667
 				proto = api.ProtocolUDP
 			} else {
-				return nil, fmt.Errorf("invalid protocol %q", p[0])
+				return nil, fmt.Errorf("invalid protocol %q, protocol supported are tcp and udp.", p[0])
 			}
-			// tcp::3306
+
 			hostPort, err = strconv.Atoi(p[1])
-			if err != nil && len(p[1]) != 0 {
-				return nil, fmt.Errorf("invalid container port %q", p[1])
-			} else if len(p[1]) == 0 {
-				hostPort = randomPortGenerator()
+			if err != nil {
+				return nil, fmt.Errorf("invalid port %q, please provide integer value in %q", p[1], port)
 			}
 
 			containerPort, err = strconv.Atoi(p[2])
 			if err != nil {
-				return nil, fmt.Errorf("invalid container port %q", p[2])
+				return nil, fmt.Errorf("invalid port %q, please provide integer value in %q", p[2], port)
 			}
 		}
 		k8sports = append(k8sports, kobject.Ports{
