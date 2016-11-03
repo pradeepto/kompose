@@ -19,4 +19,4 @@ services:
       DB_PASS: etherpad
       DB_PORT: 3306
       DB_USER: etherpad
-    service_type: external
+    type: external
