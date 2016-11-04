@@ -7,6 +7,19 @@
 
 `kompose` is a convenience tool to go from local Docker development to managing your application with Kubernetes. Transformation of the Docker Compose format to Kubernetes resources manifest may not be exact, but it helps tremendously when first deploying an application on Kubernetes.
 
+
+## OpenCompose
+
+If you have come to this branch of kompose that means, you want to try out OpenCompose. Thank you. :)
+
+This is an initial PoC for OpenCompose implementation for Kubernetes and OpenShift. We plan to merge this code with mainline kompose project in near future. Since Kompose architechture is such that it can understand multiple inputs, it was easy to add support for OpenCompose.
+
+The user experience remains the same and you can follow the rest of the readme on how to use this version of `kompose` tool. All you need to do is use the correct input type.
+
+`kompose --opencompose services.yml` should do the trick. To learn more and see a complete walkthough you can go [here](http://developers.redhat.com/blog/2016/11/03/container-orchestration-specification-for-better-devops/) or  [![asciicast](https://asciinema.org/a/7f7dw37n37m5kfn7v9uh1pn1w.png)](https://asciinema.org/a/7f7dw37n37m5kfn7v9uh1pn1w)
+
+
+
 ## Use Case
 
 If you have a Docker Compose [`docker-compose.yml`](./examples/docker-compose.yml) or a Docker Distributed Application Bundle [`docker-compose-bundle.dab`](./examples/docker-compose-bundle.dab) file, you can convert it into Kubernetes deployments and services like this:
@@ -29,7 +42,7 @@ file "redis-deployment.json" created
 
 Other examples are provided in the _examples_ [directory](./examples).
 
-## Installation 
+## Installation
 
 Grab the latest [release](https://github.com/kubernetes-incubator/kompose/releases) for your OS, untar and extract the binary.
 
