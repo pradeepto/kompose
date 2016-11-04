@@ -12,7 +12,7 @@
 
 If you have come to this branch of kompose that means, you want to try out OpenCompose. Thank you. :)
 
-This is an initial PoC for OpenCompose implementation for Kubernetes and OpenShift. We plan to merge this code with mainline kompose project in near future. Since Kompose architechture is such that it can understand multiple inputs, it was easy to add support for OpenCompose.
+This is an initial PoC for OpenCompose implementation for Kubernetes and OpenShift. We plan to merge this code with mainline kompose project in near future. Since Kompose architechture is such that it can understand multiple inputs, it was easy to add support for OpenCompose. For now, you have to pull this branch and build `kompose` by doing a `make`. The build instructions are same as mainline kompose and they are mentioned below.
 
 The user experience remains the same and you can follow the rest of the readme on how to use this version of `kompose` tool. All you need to do is use the correct input type.
 
